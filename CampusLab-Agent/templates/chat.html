@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}AI Assistant - CampusLab Agent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="glass-card p-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="rounded-circle p-2 bg-primary bg-opacity-25 text-primary me-3">
+                    <i class="bi bi-robot fs-2"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-0">CampusLab Natural Language AI Agent</h4>
+                    <p class="text-secondary mb-0">Ask in plain English to book, modify, cancel, or query laboratory systems.</p>
+                </div>
+            </div>
+
+            <!-- Example Prompt Chips -->
+            <div class="mb-3 d-flex flex-wrap gap-2">
+                <span class="text-secondary small me-1 align-self-center">Try asking:</span>
+                <button onclick="usePrompt(this)" class="btn btn-sm btn-outline-secondary text-light">"I need Lab A tomorrow from 10 to 12."</button>
+                <button onclick="usePrompt(this)" class="btn btn-sm btn-outline-secondary text-light">"Book System 15."</button>
+                <button onclick="usePrompt(this)" class="btn btn-sm btn-outline-secondary text-light">"Cancel my booking."</button>
+                <button onclick="usePrompt(this)" class="btn btn-sm btn-outline-secondary text-light">"Move my booking to Friday."</button>
+                <button onclick="usePrompt(this)" class="btn btn-sm btn-outline-secondary text-light">"Show my reservations."</button>
+            </div>
+
+            <!-- Chat Message Window -->
+            <div id="chat-messages" class="chat-box rounded bg-dark bg-opacity-50 border border-secondary border-opacity-25 mb-3">
+                <div class="chat-message bot">
+                    Hello! I'm your <strong>CampusLab AI Assistant</strong>. How can I help you today? You can ask me to reserve a computer system, modify your booking time, check free seats, or report faulty equipment!
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div class="input-group">
+                <input type="text" id="chat-input" class="form-control form-control-lg" placeholder="Type your message in natural language..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+                <button class="btn btn-primary-gradient px-4" onclick="sendChatMessage()"><i class="bi bi-send-fill me-2"></i>Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function usePrompt(btn) {
+    const text = btn.innerText.replace(/"/g, '');
+    document.getElementById('chat-input').value = text;
+    sendChatMessage();
+}
+</script>
+{% endblock %}

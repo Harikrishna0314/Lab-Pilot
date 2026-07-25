@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}My Bookings - CampusLab Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="bi bi-calendar-check text-primary me-2"></i>My Reservations</h3>
+        <p class="text-secondary mb-0">View, modify, or cancel your active computer system bookings.</p>
+    </div>
+    <a href="/labs-page" class="btn btn-primary-gradient"><i class="bi bi-plus-lg me-1"></i>New Booking</a>
+</div>
+
+<div class="glass-card p-4">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Booking ID</th>
+                    <th>Lab Name</th>
+                    <th>System #</th>
+                    <th>Date</th>
+                    <th>Time Slot</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="bookings-table-body">
+                <tr>
+                    <td colspan="7" class="text-center text-secondary py-4">Loading reservations...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modify Booking Modal -->
+<div class="modal fade" id="modifyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-pencil-square text-info me-2"></i>Modify Reservation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="mod-booking-id">
+                <div class="mb-3">
+                    <label class="form-label text-secondary">New Booking Date</label>
+                    <input type="date" class="form-control" id="mod-date" required>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-secondary">Start Time</label>
+                        <input type="time" class="form-control" id="mod-start" required>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-secondary">End Time</label>
+                        <input type="time" class="form-control" id="mod-end" required>
+                    </div>
+                </div>
+                <div id="mod-alert" class="alert alert-danger d-none mt-2"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-gradient" onclick="submitModification()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let modifyModalObj = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    modifyModalObj = new bootstrap.Modal(document.getElementById('modifyModal'));
+    loadBookings();
+});
+
+async function loadBookings() {
+    try {
+        const res = await authFetch('/api/bookings');
+        const bookings = await res.json();
+        const tbody = document.getElementById('bookings-table-body');
+
+        if (bookings.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-secondary">No booking records found.</td></tr>`;
+            return;
+        }
+
+        let html = '';
+        bookings.forEach(b => {
+            let statusBadge = '<span class="badge bg-secondary">UNKNOWN</span>';
+            if (b.status === 'active') statusBadge = '<span class="badge badge-available">ACTIVE</span>';
+            else if (b.status === 'cancelled') statusBadge = '<span class="badge badge-faulty">CANCELLED</span>';
+            else if (b.status === 'completed') statusBadge = '<span class="badge bg-info">COMPLETED</span>';
+
+            html += `
+                <tr>
+                    <td class="fw-bold">#${b.id}</td>
+                    <td>${b.lab_name}</td>
+                    <td><span class="badge bg-dark border border-secondary">Sys #${b.system_number}</span></td>
+                    <td>${b.booking_date}</td>
+                    <td>${b.start_time} - ${b.end_time}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        ${b.status === 'active' ? `
+                            <button onclick="openModifyModal(${b.id}, '${b.booking_date}', '${b.start_time}', '${b.end_time}')" class="btn btn-sm btn-outline-info me-1"><i class="bi bi-pencil"></i> Modify</button>
+                            <button onclick="cancelBooking(${b.id})" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancel</button>
+                        ` : '<span class="text-secondary small">N/A</span>'}
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch(e) {}
+}
+
+function openModifyModal(id, date, start, end) {
+    document.getElementById('mod-booking-id').value = id;
+    document.getElementById('mod-date').value = date;
+    document.getElementById('mod-start').value = start;
+    document.getElementById('mod-end').value = end;
+    document.getElementById('mod-alert').classList.add('d-none');
+    modifyModalObj.show();
+}
+
+async function submitModification() {
+    const id = document.getElementById('mod-booking-id').value;
+    const date = document.getElementById('mod-date').value;
+    const start = document.getElementById('mod-start').value;
+    const end = document.getElementById('mod-end').value;
+    const alertBox = document.getElementById('mod-alert');
+
+    try {
+        const res = await authFetch(`/api/booking/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ booking_date: date, start_time: start, end_time: end })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            modifyModalObj.hide();
+            loadBookings();
+        } else {
+            alertBox.classList.remove('d-none');
+            alertBox.innerText = data.error || 'Modification failed.';
+        }
+    } catch(e) {
+        alertBox.classList.remove('d-none');
+        alertBox.innerText = 'Network error.';
+    }
+}
+
+async function cancelBooking(id) {
+    if (!confirm(`Are you sure you want to cancel booking #${id}?`)) return;
+    try {
+        const res = await authFetch(`/api/booking/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadBookings();
+        } else {
+            alert('Failed to cancel booking.');
+        }
+    } catch(e) {}
+}
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: campuslab_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: campuslab_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database.sql:/docker-entrypoint-initdb.d/database.sql
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: campuslab_web
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/campuslab_db
+      - JWT_SECRET_KEY=production-super-secret-jwt-key-2026
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

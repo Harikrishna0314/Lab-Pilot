@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - CampusLab Agent{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-warning"><i class="bi bi-shield-lock me-2"></i>Lab Administration Dashboard</h3>
+        <p class="text-secondary mb-0">System occupancy charts, usage analytics, lab creation, and status management.</p>
+    </div>
+    <button class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#createLabModal"><i class="bi bi-plus-circle me-1"></i>Create New Lab</button>
+</div>
+
+<!-- Analytics & Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart text-info me-2"></i>Lab Occupancy Distribution</h5>
+            <canvas id="occupancyChart" height="220"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-line text-warning me-2"></i>Daily Reservation Analytics</h5>
+            <canvas id="usageChart" height="220"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Management Tabs -->
+<div class="glass-card p-4">
+    <ul class="nav nav-tabs border-secondary mb-3" id="adminTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active text-light" id="systems-tab" data-bs-toggle="tab" data-bs-target="#systems-pane">System Management</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link text-light" id="all-bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings-pane">All Reservations</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabContent">
+        <!-- System Management Pane -->
+        <div class="tab-pane fade show active" id="systems-pane">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>System ID</th>
+                            <th>Lab Name</th>
+                            <th>System #</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-systems-body">
+                        <tr><td colspan="5" class="text-center py-4 text-secondary">Loading systems...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- All Reservations Pane -->
+        <div class="tab-pane fade" id="bookings-pane">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>User</th>
+                            <th>Lab</th>
+                            <th>System #</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-bookings-body">
+                        <tr><td colspan="7" class="text-center py-4 text-secondary">Loading bookings...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Lab Modal -->
+<div class="modal fade" id="createLabModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-door-open-fill text-warning me-2"></i>Create New Lab</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Lab Name</label>
+                    <input type="text" class="form-control" id="new-lab-name" placeholder="Lab D - Cybersecurity" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Capacity (Total Systems)</label>
+                    <input type="number" class="form-control" id="new-lab-cap" value="20" min="1" required>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-secondary">Open Time</label>
+                        <input type="time" class="form-control" id="new-lab-open" value="08:00" required>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label text-secondary">Close Time</label>
+                        <input type="time" class="form-control" id="new-lab-close" value="20:00" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Description</label>
+                    <textarea class="form-control" id="new-lab-desc" rows="2"></textarea>
+                </div>
+                <div id="create-lab-alert" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-gradient" onclick="submitCreateLab()">Create Lab</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    loadAdminSystems();
+    loadAdminBookings();
+    initCharts();
+});
+
+async function initCharts() {
+    try {
+        const res = await authFetch('/api/labs');
+        const labs = await res.json();
+
+        const labNames = labs.map(l => l.name);
+        const availableData = labs.map(l => l.available_systems);
+        const totalData = labs.map(l => l.capacity);
+
+        // Pie Chart
+        new Chart(document.getElementById('occupancyChart'), {
+            type: 'doughnut',
+            data: {
+                labels: labNames,
+                datasets: [{
+                    data: availableData,
+                    backgroundColor: ['#6366f1', '#14b8a6', '#f59e0b', '#ec4899']
+                }]
+            },
+            options: { plugins: { legend: { labels: { color: '#f8fafc' } } } }
+        });
+
+        // Bar Chart
+        new Chart(document.getElementById('usageChart'), {
+            type: 'bar',
+            data: {
+                labels: labNames,
+                datasets: [
+                    { label: 'Available Systems', data: availableData, backgroundColor: '#2dd4bf' },
+                    { label: 'Total Capacity', data: totalData, backgroundColor: '#3b82f6' }
+                ]
+            },
+            options: {
+                scales: {
+                    x: { ticks: { color: '#94a3b8' } },
+                    y: { ticks: { color: '#94a3b8' } }
+                },
+                plugins: { legend: { labels: { color: '#f8fafc' } } }
+            }
+        });
+    } catch(e) {}
+}
+
+async function loadAdminSystems() {
+    try {
+        const res = await authFetch('/api/systems');
+        const systems = await res.json();
+        const tbody = document.getElementById('admin-systems-body');
+
+        let html = '';
+        systems.forEach(s => {
+            let statusBadge = `<span class="badge badge-${s.status}">${s.status.toUpperCase()}</span>`;
+            html += `
+                <tr>
+                    <td>#${s.id}</td>
+                    <td>${s.lab_name}</td>
+                    <td>Sys #${s.system_number}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <select class="form-select form-select-sm" style="width: auto; display:inline-block;" onchange="changeSystemStatus(${s.id}, this.value)">
+                            <option value="available" ${s.status === 'available' ? 'selected' : ''}>Available</option>
+                            <option value="reserved" ${s.status === 'reserved' ? 'selected' : ''}>Reserved</option>
+                            <option value="faulty" ${s.status === 'faulty' ? 'selected' : ''}>Faulty (Disable)</option>
+                        </select>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch(e) {}
+}
+
+async function changeSystemStatus(id, newStatus) {
+    try {
+        await authFetch(`/api/systems/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: newStatus })
+        });
+        loadAdminSystems();
+    } catch(e) {}
+}
+
+async function loadAdminBookings() {
+    try {
+        const res = await authFetch('/api/bookings');
+        const bookings = await res.json();
+        const tbody = document.getElementById('admin-bookings-body');
+
+        let html = '';
+        bookings.forEach(b => {
+            html += `
+                <tr>
+                    <td>#${b.id}</td>
+                    <td>${b.user_name} (${b.user_email})</td>
+                    <td>${b.lab_name}</td>
+                    <td>Sys #${b.system_number}</td>
+                    <td>${b.booking_date}</td>
+                    <td>${b.start_time} - ${b.end_time}</td>
+                    <td><span class="badge bg-secondary">${b.status.toUpperCase()}</span></td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch(e) {}
+}
+
+async function submitCreateLab() {
+    const name = document.getElementById('new-lab-name').value;
+    const capacity = document.getElementById('new-lab-cap').value;
+    const open_time = document.getElementById('new-lab-open').value;
+    const close_time = document.getElementById('new-lab-close').value;
+    const description = document.getElementById('new-lab-desc').value;
+    const alertBox = document.getElementById('create-lab-alert');
+
+    try {
+        const res = await authFetch('/api/labs', {
+            method: 'POST',
+            body: JSON.stringify({ name, capacity, open_time, close_time, description })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            location.reload();
+        } else {
+            alertBox.classList.remove('d-none');
+            alertBox.innerText = data.error || 'Failed to create lab.';
+        }
+    } catch(e) {
+        alertBox.classList.remove('d-none');
+        alertBox.innerText = 'Network error.';
+    }
+}
+</script>
+{% endblock %}

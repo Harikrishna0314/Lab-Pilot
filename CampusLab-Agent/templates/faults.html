@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Fault Reports - CampusLab Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="bi bi-tools text-danger me-2"></i>Fault & Issue Reporting</h3>
+        <p class="text-secondary mb-0">Report hardware or network issues with lab systems and track maintenance status.</p>
+    </div>
+    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reportFaultModal"><i class="bi bi-exclamation-triangle me-1"></i>Report Faulty Equipment</button>
+</div>
+
+<div class="glass-card p-4">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Report ID</th>
+                    <th>Lab & System</th>
+                    <th>Issue Type</th>
+                    <th>Description</th>
+                    <th>Reported By</th>
+                    <th>Status</th>
+                    <th>Admin Actions</th>
+                </tr>
+            </thead>
+            <tbody id="faults-table-body">
+                <tr><td colspan="7" class="text-center py-4 text-secondary">Loading fault reports...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Report Fault Modal -->
+<div class="modal fade" id="reportFaultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-exclamation-octagon text-danger me-2"></i>Report System Issue</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Select System</label>
+                    <select class="form-select" id="fault-sys-id" required>
+                        <option value="">Loading systems...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Issue Type</label>
+                    <select class="form-select" id="fault-issue-type" required>
+                        <option value="keyboard">Keyboard Issue</option>
+                        <option value="mouse">Mouse Issue</option>
+                        <option value="monitor">Monitor Issue</option>
+                        <option value="network">Network Issue</option>
+                        <option value="power">Power Issue</option>
+                        <option value="other">Other Hardware / Software</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Description</label>
+                    <textarea class="form-control" id="fault-desc" rows="3" placeholder="Describe the issue in detail..."></textarea>
+                </div>
+                <div id="fault-alert" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="submitFaultReport()">Submit Fault Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let reportModalObj = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    reportModalObj = new bootstrap.Modal(document.getElementById('reportFaultModal'));
+    loadFaultReports();
+    loadSystemDropdown();
+});
+
+async function loadSystemDropdown() {
+    try {
+        const res = await authFetch('/api/systems');
+        const systems = await res.json();
+        const select = document.getElementById('fault-sys-id');
+        select.innerHTML = '<option value="">Select System...</option>' + 
+            systems.map(s => `<option value="${s.id}">${s.lab_name} — System #${s.system_number} (${s.status.toUpperCase()})</option>`).join('');
+    } catch(e) {}
+}
+
+async function loadFaultReports() {
+    try {
+        const res = await authFetch('/api/faults');
+        const reports = await res.json();
+        const tbody = document.getElementById('faults-table-body');
+
+        if (reports.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-secondary">No fault reports logged.</td></tr>`;
+            return;
+        }
+
+        const user = getCurrentUser();
+        const isAdmin = user && user.role === 'admin';
+
+        let html = '';
+        reports.forEach(r => {
+            let statusBadge = '<span class="badge badge-faulty">OPEN</span>';
+            if (r.status === 'in_progress') statusBadge = '<span class="badge badge-reserved">IN PROGRESS</span>';
+            if (r.status === 'repaired') statusBadge = '<span class="badge badge-available">REPAIRED</span>';
+
+            html += `
+                <tr>
+                    <td>#${r.id}</td>
+                    <td><strong class="text-light">${r.lab_name || 'Lab'}</strong> — Sys #${r.system_number}</td>
+                    <td><span class="badge bg-dark border border-secondary text-info">${r.issue_type.toUpperCase()}</span></td>
+                    <td class="text-secondary">${escapeHtml(r.description || 'No description')}</td>
+                    <td>${r.reporter_name || 'User #' + r.reported_by}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        ${isAdmin ? `
+                            <select class="form-select form-select-sm" style="width:auto; display:inline-block;" onchange="updateFaultStatus(${r.id}, this.value)">
+                                <option value="open" ${r.status === 'open' ? 'selected' : ''}>Open</option>
+                                <option value="in_progress" ${r.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="repaired" ${r.status === 'repaired' ? 'selected' : ''}>Mark Repaired</option>
+                            </select>
+                        ` : '<span class="text-secondary small">Admin only</span>'}
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch(e) {}
+}
+
+async function submitFaultReport() {
+    const system_id = document.getElementById('fault-sys-id').value;
+    const issue_type = document.getElementById('fault-issue-type').value;
+    const description = document.getElementById('fault-desc').value;
+    const alertBox = document.getElementById('fault-alert');
+
+    if (!system_id) {
+        alertBox.classList.remove('d-none');
+        alertBox.innerText = 'Please select a system.';
+        return;
+    }
+
+    try {
+        const res = await authFetch('/api/fault', {
+            method: 'POST',
+            body: JSON.stringify({ system_id: parseInt(system_id), issue_type, description })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            reportModalObj.hide();
+            loadFaultReports();
+        } else {
+            alertBox.classList.remove('d-none');
+            alertBox.innerText = data.error || 'Failed to submit report.';
+        }
+    } catch(e) {
+        alertBox.classList.remove('d-none');
+        alertBox.innerText = 'Network error.';
+    }
+}
+
+async function updateFaultStatus(id, newStatus) {
+    try {
+        await authFetch(`/api/fault/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: newStatus })
+        });
+        loadFaultReports();
+    } catch(e) {}
+}
+</script>
+{% endblock %}

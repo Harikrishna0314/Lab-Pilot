@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CampusLab Agent{% endblock %} - AI Computer Lab Reservation</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/dashboard">
+                <i class="bi bi-cpu me-2 fs-3 text-primary"></i> CampusLab Agent
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/chat"><i class="bi bi-robot me-1"></i>AI Assistant</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/bookings-page"><i class="bi bi-calendar-check me-1"></i>Bookings</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/labs-page"><i class="bi bi-door-open me-1"></i>Labs & Seats</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/faults-page"><i class="bi bi-tools me-1"></i>Fault Reports</a></li>
+                    <li class="nav-item d-none" id="nav-admin-link"><a class="nav-link text-warning fw-bold" href="/admin"><i class="bi bi-shield-lock me-1"></i>Admin Panel</a></li>
+                </ul>
+                <div class="d-flex align-items-center" id="nav-user-info">
+                    <a href="/login" class="btn btn-sm btn-outline-light me-2">Login</a>
+                    <a href="/register" class="btn btn-sm btn-primary-gradient">Register</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4 flex-grow-1">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3 text-center text-secondary border-top border-secondary border-opacity-25" style="background: rgba(15,23,42,0.9);">
+        <div class="container">
+            <small>© 2026 CampusLab Agent • AI-Powered Computer Laboratory Booking System</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

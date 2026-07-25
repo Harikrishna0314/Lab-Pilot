@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CampusLab Agent{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-1"><i class="bi bi-speedometer2 text-primary me-2"></i>Campus Lab Dashboard</h2>
+        <p class="text-secondary">Real-time laboratory overview and quick reservation controls.</p>
+    </div>
+    <div class="col-md-4 text-md-end align-self-center">
+        <a href="/chat" class="btn btn-primary-gradient"><i class="bi bi-robot me-2"></i>Open AI Chat Assistant</a>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="glass-card p-3 d-flex align-items-center">
+            <div class="rounded-circle p-3 bg-primary bg-opacity-25 text-primary me-3">
+                <i class="bi bi-door-open fs-2"></i>
+            </div>
+            <div>
+                <h6 class="text-secondary mb-0">Total Labs</h6>
+                <h3 class="fw-bold mb-0" id="stat-total-labs">3</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="glass-card p-3 d-flex align-items-center">
+            <div class="rounded-circle p-3 bg-teal bg-opacity-25 text-info me-3">
+                <i class="bi bi-cpu fs-2"></i>
+            </div>
+            <div>
+                <h6 class="text-secondary mb-0">Available Seats</h6>
+                <h3 class="fw-bold mb-0" id="stat-available-seats">60</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="glass-card p-3 d-flex align-items-center">
+            <div class="rounded-circle p-3 bg-warning bg-opacity-25 text-warning me-3">
+                <i class="bi bi-calendar-event fs-2"></i>
+            </div>
+            <div>
+                <h6 class="text-secondary mb-0">Active Bookings</h6>
+                <h3 class="fw-bold mb-0" id="stat-active-bookings">0</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="glass-card p-3 d-flex align-items-center">
+            <div class="rounded-circle p-3 bg-danger bg-opacity-25 text-danger me-3">
+                <i class="bi bi-exclamation-triangle fs-2"></i>
+            </div>
+            <div>
+                <h6 class="text-secondary mb-0">Active Faults</h6>
+                <h3 class="fw-bold mb-0" id="stat-active-faults">0</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="row g-4">
+    <!-- Today's Bookings -->
+    <div class="col-lg-7">
+        <div class="glass-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-info"></i>Your Reservations</h5>
+                <a href="/bookings-page" class="text-info text-decoration-none small">View All →</a>
+            </div>
+            <div id="dashboard-bookings-list" class="list-group list-group-flush bg-transparent">
+                <div class="text-center text-secondary py-4">Loading your bookings...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Labs & Live Seat Status -->
+    <div class="col-lg-5">
+        <div class="glass-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-pc-display me-2 text-teal"></i>Lab Real-time Status</h5>
+                <a href="/labs-page" class="text-info text-decoration-none small">Full View →</a>
+            </div>
+            <div id="dashboard-labs-list" class="d-flex flex-column gap-3">
+                <div class="text-center text-secondary py-4">Loading lab statuses...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // Fetch Labs
+    try {
+        const res = await authFetch('/api/labs');
+        const labs = await res.json();
+        let totalSeats = 0;
+        let labHtml = '';
+        
+        labs.forEach(lab => {
+            totalSeats += lab.available_systems;
+            const percentFree = Math.round((lab.available_systems / lab.capacity) * 100);
+            labHtml += `
+                <div class="p-3 rounded bg-dark bg-opacity-50 border border-secondary border-opacity-25">
+                    <div class="d-flex justify-content-between mb-1">
+                        <strong class="text-light">${lab.name}</strong>
+                        <span class="badge badge-available">${lab.available_systems} / ${lab.capacity} Free</span>
+                    </div>
+                    <small class="text-secondary d-block mb-2"><i class="bi bi-clock me-1"></i>Hours: ${lab.open_time} - ${lab.close_time}</small>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-info" style="width: ${percentFree}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('stat-total-labs').innerText = labs.length;
+        document.getElementById('stat-available-seats').innerText = totalSeats;
+        document.getElementById('dashboard-labs-list').innerHTML = labHtml || '<p class="text-secondary">No labs found.</p>';
+    } catch(e) {}
+
+    // Fetch User Bookings
+    try {
+        const res = await authFetch('/api/bookings?status=active');
+        const bookings = await res.json();
+        document.getElementById('stat-active-bookings').innerText = bookings.length;
+
+        let bHtml = '';
+        if (bookings.length === 0) {
+            bHtml = `
+                <div class="text-center py-4 text-secondary">
+                    <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                    No active reservations found.
+                </div>
+            `;
+        } else {
+            bookings.slice(0, 5).forEach(b => {
+                bHtml += `
+                    <div class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-3">
+                        <div>
+                            <h6 class="mb-1 text-info fw-semibold">${b.lab_name} — System #${b.system_number}</h6>
+                            <small class="text-secondary"><i class="bi bi-calendar-event me-1"></i>${b.booking_date} | <i class="bi bi-clock me-1"></i>${b.start_time} - ${b.end_time}</small>
+                        </div>
+                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25">ACTIVE</span>
+                    </div>
+                `;
+            });
+        }
+        document.getElementById('dashboard-bookings-list').innerHTML = bHtml;
+    } catch(e) {}
+
+    // Fetch Fault Reports
+    try {
+        const res = await authFetch('/api/faults?status=open');
+        const faults = await res.json();
+        document.getElementById('stat-active-faults').innerText = faults.length;
+    } catch(e) {}
+});
+</script>
+{% endblock %}
