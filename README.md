@@ -1,168 +1,44 @@
 CampusLab Agent — AI-Powered Computer Laboratory Assistant
-Python 3.11 Flask PostgreSQL Docker License: MIT
 
-CampusLab Agent is a production-quality, full-stack web application designed for universities and academic institutions. It enables students, faculty, and lab administrators to manage computer laboratory reservations seamlessly using natural language chat commands.
+CampusLab Agent is an AI-powered, full-stack web application designed for universities and academic institutions to simplify computer laboratory management. It enables students, faculty, and lab administrators to reserve computer systems, check real-time seat availability, report equipment faults, and manage laboratory resources through a user-friendly interface. The platform also includes a natural-language AI assistant that allows users to perform actions using simple conversational commands such as “Book System 15”, “Cancel my booking”, or “Show my reservations.”
 
 🌟 Key Features
-🤖 AI Natural Language Chat Assistant
-Translate conversational requests directly into backend API executions.
-Supported natural language queries:
-"I need Lab A tomorrow from 10 to 12."
-"Book System 15."
-"Cancel my booking."
-"Move my booking to Friday."
-"Show my reservations."
-💻 Laboratory & Real-Time Seat Tracking
-Interactive lab seat matrix showing live statuses: Available, Reserved, or Faulty.
-Conflict resolution logic automatically detects overlapping slots, enforces lab opening hours, and suggests alternative available seats or time windows.
-🔐 Authentication & Role-Based Authorization
-JWT (JSON Web Tokens) authentication.
-Three user roles with tailored interfaces and permissions:
-Student: Book systems, view personal reservations, report equipment faults.
-Faculty: Book systems, manage project reservations.
-Lab Admin: Full management dashboard, create new labs, disable faulty equipment, mark repairs, view occupancy analytics.
-⚠️ Equipment Fault Reporting
-Students & faculty can log hardware/network issues (Keyboard, Mouse, Monitor, Network, Power).
-Automatically marks reported systems as FAULTY to prevent reservations until repaired.
+🤖 AI Natural Language Assistant – Converts conversational requests into appropriate backend actions.
+💻 Real-Time Seat Tracking – Displays computer systems as Available, Reserved, or Faulty.
+📅 Smart Reservation System – Detects booking conflicts and suggests alternative seats or time slots.
+🔐 JWT Authentication – Provides secure login and role-based access.
+👥 Role-Based Access Control – Separate features and permissions for Students, Faculty, and Lab Administrators.
+⚠️ Equipment Fault Reporting – Users can report issues with keyboards, monitors, network, power, and other equipment.
+📊 Admin Dashboard – Allows administrators to manage laboratories, faulty systems, reservations, and occupancy analytics.
+🐳 Docker Support – Supports containerized deployment using Docker and Docker Compose.
+🧪 Automated Testing – Includes PyTest-based unit and integration tests.
+🔄 CI/CD – GitHub Actions workflow for automated testing and development.
+🛠️ Technology Stack
+Python 3.11
+Flask
+PostgreSQL
+SQLAlchemy
+JWT Authentication
+OpenAI API
+HTML, CSS, JavaScript
+Docker & Docker Compose
+PyTest
+GitHub Actions
 🏗️ Project Architecture
-CampusLab-Agent/
-│
-├── app.py                     # Application factory & page routes
-├── config.py                  # Environment configurations (Dev, Test, Prod)
-├── models.py                 # SQLAlchemy ORM database models
-├── database.sql               # PostgreSQL schema & seed script
-├── requirements.txt           # Python dependencies
-├── README.md                  # Project documentation
-├── API_DOCUMENTATION.md       # OpenAPI-style REST API docs
-│
-├── services/                  # Business logic layer
-│   ├── auth_service.py        # Hashing, authentication, JWT tokens
-│   ├── lab_service.py         # Lab CRUD, real-time seat availability
-│   ├── booking_service.py     # Conflict detection, suggestions, booking logic
-│   └── fault_service.py       # Fault logging & maintenance management
-│
-├── ai/                        # Natural Language Processing layer
-│   └── assistant.py           # Intent extraction & function calling dispatcher
-│
-├── routes/                    # REST API endpoints (Blueprints)
-│   ├── auth.py                # /api/register, /api/login, /api/me
-│   ├── labs.py                # /api/labs
-│   ├── systems.py             # /api/systems
-│   ├── bookings.py            # /api/book, /api/booking/<id>, /api/bookings
-│   ├── faults.py              # /api/fault, /api/faults
-│   └── ai_chat.py            # /api/chat
-│
-├── templates/                 # Jinja2 HTML templates
-│   ├── base.html              # Glassmorphism layout & navbar
-│   ├── login.html             # User login page
-│   ├── register.html          # Registration page
-│   ├── dashboard.html         # User dashboard & metrics
-│   ├── chat.html              # AI Assistant chat view
-│   ├── bookings.html          # Personal reservations view
-│   ├── labs.html              # Interactive seat grid view
-│   ├── admin.html             # Admin analytics & occupancy charts
-│   └── faults.html            # Maintenance & fault reporting
-│
-├── static/                    # Frontend styling & JavaScript
-│   ├── css/style.css          # Custom dark glassmorphism stylesheet
-│   └── js/main.js             # API wrapper & frontend logic
-│
-├── docker/                    # Dockerization container files
-│   ├── Dockerfile
-│   └── docker-compose.yml
-│
-├── .github/workflows/         # CI/CD Workflows
-│   └── ci.yml                 # GitHub Actions automated testing
-│
-└── tests/                     # PyTest automated unit & integration test suite
-    ├── conftest.py
-    ├── test_auth.py
-    ├── test_bookings.py
-    └── test_ai.py
-🛢️ Database ER Diagram (PostgreSQL)
-+--------------------+        +--------------------+
-|       USERS        |        |        LABS        |
-+--------------------+        +--------------------+
-| id (PK)            |        | id (PK)            |
-| name               |        | name               |
-| email (UNIQUE)     |        | capacity           |
-| password_hash      |        | open_time          |
-| role               |        | close_time         |
-| created_at         |        | description        |
-+---------+----------+        +---------+----------+
-          |                             |
-          | 1                           | 1
-          |                             |
-          | N                           | N
-+---------v----------+        +---------v----------+
-|      BOOKINGS      |        |      SYSTEMS       |
-+--------------------+        +--------------------+
-| id (PK)            | N    1 | id (PK)            |
-| user_id (FK)       +--------+ lab_id (FK)        |
-| system_id (FK)     |        | system_number      |
-| booking_date       |        | status             |
-| start_time         |        +---------+----------+
-| end_time           |                  |
-| status             |                  | 1
-+--------------------+                  |
-                                        | N
-                              +---------v----------+
-                              |   FAULT_REPORTS    |
-                              +--------------------+
-                              | id (PK)            |
-                              | system_id (FK)     |
-                              | reported_by (FK)   |
-                              | issue_type         |
-                              | description        |
-                              | status             |
-                              +--------------------+
-⚡ Quick Start & Installation Guide
-Prerequisites
-Python 3.11+
-PostgreSQL 15+ (or Docker)
-Git
-Local Setup (Virtualenv)
-Clone Repository & Navigate:
 
-git clone https://github.com/campuslab/campuslab-agent.git
-cd CampusLab-Agent
-Create Virtual Environment & Install Dependencies:
+The application follows a modular architecture with separate layers for authentication, laboratory management, booking operations, fault management, AI processing, and REST APIs. PostgreSQL is used for persistent data storage, while Flask handles the backend and web application. The AI assistant processes natural-language requests and dispatches them to the appropriate backend services.
 
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
+🚀 Future Enhancements
+University SSO/SAML authentication
+Real-time updates using WebSockets
+Voice-based AI assistant
+QR-code-based laboratory check-in
+AI-based laboratory usage prediction
+Automated email and mobile notifications
+Advanced occupancy and usage analytics
+👨‍💻 Author
 
-pip install -r requirements.txt
-Configure Environment Variables: Create a .env file in the root folder:
+Harikrishna
+B.Tech — Artificial Intelligence & Data Science
 
-FLASK_ENV=development
-SECRET_KEY=super-secret-key
-JWT_SECRET_KEY=jwt-secret-key
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/campuslab_db
-OPENAI_API_KEY=your_openai_api_key_here
-Initialize Database:
-
-psql -U postgres -d campuslab_db -f database.sql
-Run Development Server:
-
-python app.py
-Open your browser at http://localhost:5000.
-
-🐳 Docker Deployment
-To launch the full application with PostgreSQL using Docker Compose:
-
-cd docker
-docker-compose up --build
-Access the application at http://localhost:5000.
-
-🧪 Running Automated Tests
-Run the PyTest test suite:
-
-pytest -v tests/
-🔮 Future Enhancements
-SSO / SAML Integration: OAuth2 / Google Workspace login for university students.
-WebSocket Real-time Updates: Real-time push updates for live seat booking matrix using Flask-SocketIO.
-Voice Input Assistant: Native speech-to-text integration for accessibility.
-QR Code Scanning: QR check-in at physical computer workstations.
+CampusLab Agent combines AI, web development, database management, and automation to create a smarter and more efficient computer laboratory management system for academic institutions.
